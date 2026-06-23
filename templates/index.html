@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Track Google BigQuery Release Notes. Search, filter, and share updates on X (Twitter).">
+    <title>BigQuery Release Notes Hub</title>
+    
+    <!-- Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- CSS Custom Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Background blur blobs for premium aesthetic -->
+    <div class="blur-blob blob-1"></div>
+    <div class="blur-blob blob-2"></div>
+    <div class="blur-blob blob-3"></div>
+
+    <div class="container">
+        <!-- Header Section -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo-area">
+                    <span class="logo-dot"></span>
+                    <h1 class="logo-text">BigQuery <span>Release Notes</span></h1>
+                </div>
+                <p class="subtitle">Track, filter, and share Google Cloud BigQuery updates in real-time.</p>
+            </div>
+            
+            <div class="header-right">
+                <div class="status-badge" id="statusBadge">
+                    <span class="pulse-indicator green"></span>
+                    <span class="status-text" id="statusText">Checking feed...</span>
+                </div>
+                <button class="btn btn-refresh" id="refreshBtn" title="Refresh Release Notes">
+                    <svg class="icon icon-sync" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l.57.81"></path>
+                    </svg>
+                    <span>Refresh</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Search and Filter Controls -->
+        <section class="controls-panel">
+            <div class="search-box">
+                <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="searchInput" placeholder="Search updates by keyword..." autocomplete="off">
+                <button id="clearSearchBtn" class="clear-search-btn" title="Clear search">&times;</button>
+            </div>
+            
+            <div class="filter-pills" id="filterPills">
+                <button class="pill active" data-filter="all">All Updates</button>
+                <button class="pill" data-filter="Feature">
+                    <span class="pill-dot feature"></span>Features
+                </button>
+                <button class="pill" data-filter="Announcement">
+                    <span class="pill-dot announcement"></span>Announcements
+                </button>
+                <button class="pill" data-filter="Deprecation">
+                    <span class="pill-dot deprecation"></span>Deprecations
+                </button>
+                <button class="pill" data-filter="Issue">
+                    <span class="pill-dot issue"></span>Issues
+                </button>
+                <button class="pill" data-filter="General">
+                    <span class="pill-dot general"></span>General
+                </button>
+            </div>
+        </section>
+
+        <!-- Main Feed Grid -->
+        <main class="feed-container" id="feedContainer">
+            <!-- Loading State -->
+            <div class="loading-state" id="loadingState">
+                <div class="spinner-container">
+                    <div class="double-bounce1"></div>
+                    <div class="double-bounce2"></div>
+                </div>
+                <p>Retrieving Google BigQuery release notes...</p>
+            </div>
+
+            <!-- Error State -->
+            <div class="error-state hidden" id="errorState">
+                <svg class="error-icon" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <h3>Failed to load release notes</h3>
+                <p id="errorMessage">An unexpected error occurred while parsing the XML feed.</p>
+                <button class="btn btn-primary" id="retryBtn">Retry Connection</button>
+            </div>
+
+            <!-- Empty State -->
+            <div class="empty-state hidden" id="emptyState">
+                <svg class="empty-icon" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="8" y1="12" x2="16" y2="12"></line>
+                </svg>
+                <h3>No matching updates found</h3>
+                <p>Try modifying your search keywords or choosing a different filter category.</p>
+                <button class="btn btn-secondary" id="resetFiltersBtn">Reset Search & Filters</button>
+            </div>
+
+            <!-- Feed Content (Will be dynamically rendered) -->
+            <div class="feed-timeline hidden" id="feedTimeline"></div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>BigQuery Release Notes tracker &bull; Built with Flask & Vanilla UI</p>
+            <p class="source-link">
+                Source: <a href="https://docs.cloud.google.com/feeds/bigquery-release-notes.xml" target="_blank" rel="noopener noreferrer">Google Cloud RSS Feed</a>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Tweet Composer Modal -->
+    <div class="modal-overlay hidden" id="tweetModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-area">
+                    <svg class="x-logo-sm" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
+                    </svg>
+                    <h2>Compose Tweet</h2>
+                </div>
+                <button class="btn-close" id="closeModalBtn">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="tweet-preview-header">
+                    <div class="avatar">BQ</div>
+                    <div class="user-info">
+                        <span class="display-name">BigQuery Updates</span>
+                        <span class="handle">@bigquery_notes</span>
+                    </div>
+                </div>
+                
+                <div class="tweet-textarea-wrapper">
+                    <textarea id="tweetTextarea" rows="6" maxlength="500" placeholder="What's happening?"></textarea>
+                </div>
+                
+                <div class="modal-actions">
+                    <div class="char-counter-container">
+                        <svg class="progress-ring" width="30" height="30">
+                            <circle class="progress-ring-bg" stroke="#1f2937" stroke-width="3" fill="transparent" r="12" cx="15" cy="15"/>
+                            <circle class="progress-ring-circle" id="charProgressCircle" stroke="#6366f1" stroke-width="3" fill="transparent" r="12" cx="15" cy="15"/>
+                        </svg>
+                        <span class="char-count" id="charCount">280</span>
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" id="copyTweetBtn">
+                            <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                            <span id="copyBtnText">Copy</span>
+                        </button>
+                        <button class="btn btn-tweet-submit" id="submitTweetBtn">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 4px;">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
+                            </svg>
+                            <span>Post on X</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Main JavaScript Logic -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
