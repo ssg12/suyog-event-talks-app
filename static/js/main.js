@@ -19,6 +19,7 @@ const statusText = document.getElementById('statusText');
 const statusBadge = document.getElementById('statusBadge');
 const retryBtn = document.getElementById('retryBtn');
 const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+const exportCsvBtn = document.getElementById('exportCsvBtn');
 
 // Modal Elements
 const tweetModal = document.getElementById('tweetModal');
@@ -190,6 +191,44 @@ function renderFeed() {
             const cardActions = document.createElement('div');
             cardActions.className = 'card-actions';
             
+            // Copy Card Content Button
+            const copyCardBtn = document.createElement('button');
+            copyCardBtn.className = 'btn-icon btn-copy-card-icon';
+            copyCardBtn.title = 'Copy update details to clipboard';
+            copyCardBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+            `;
+            
+            copyCardBtn.addEventListener('click', async () => {
+                const cleanText = stripHtml(update.html).replace(/\s+/g, ' ').trim();
+                const contentToCopy = `BigQuery Update (${entry.date}) - ${update.type}:\n${cleanText}\n\nSource Link: ${entry.link || 'https://cloud.google.com/bigquery/docs/release-notes'}`;
+                try {
+                    await navigator.clipboard.writeText(contentToCopy);
+                    showToast('Update copied to clipboard!', 'success');
+                    
+                    // Show checkmark icon as visual feedback
+                    copyCardBtn.innerHTML = `
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-feature);">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    `;
+                    setTimeout(() => {
+                        copyCardBtn.innerHTML = `
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        `;
+                    }, 2000);
+                } catch (err) {
+                    console.error('Failed to copy: ', err);
+                    showToast('Failed to copy text.', 'error');
+                }
+            });
+            
             // Tweet/Share Button
             const tweetBtn = document.createElement('button');
             tweetBtn.className = 'btn-icon btn-tweet-icon';
@@ -204,6 +243,7 @@ function renderFeed() {
                 openTweetModal(entry.date, entry.link, update);
             });
             
+            cardActions.appendChild(copyCardBtn);
             cardActions.appendChild(tweetBtn);
             cardHeader.appendChild(tag);
             cardHeader.appendChild(cardActions);
@@ -406,6 +446,46 @@ function showToast(message, type = 'info') {
     }, 3800);
 }
 
+// Export currently filtered releases list to CSV file
+function exportToCSV() {
+    const filteredData = filterAndSearchData();
+    if (filteredData.length === 0) {
+        showToast('No updates to export.', 'error');
+        return;
+    }
+    
+    let csvRows = [];
+    // Headers
+    csvRows.push(['Date', 'Category', 'Update Details', 'Original Link']);
+    
+    filteredData.forEach(entry => {
+        entry.updates.forEach(update => {
+            const cleanText = stripHtml(update.html).replace(/\s+/g, ' ').trim();
+            csvRows.push([entry.date, update.type, cleanText, entry.link || 'https://cloud.google.com/bigquery/docs/release-notes']);
+        });
+    });
+    
+    const csvString = csvRows.map(row => 
+        row.map(val => `"${val.replace(/"/g, '""')}"`).join(',')
+    ).join('\r\n');
+    
+    try {
+        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `bigquery_release_notes_${new Date().toISOString().slice(0,10)}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('CSV export downloaded successfully!', 'success');
+    } catch (err) {
+        console.error('Failed to export CSV:', err);
+        showToast('Failed to export CSV.', 'error');
+    }
+}
+
 /* --- Event Listeners Setup --- */
 
 // Search input keyword changes
@@ -470,6 +550,7 @@ tweetModal.addEventListener('click', (e) => {
 tweetTextarea.addEventListener('input', updateCharCount);
 copyTweetBtn.addEventListener('click', copyTweetToClipboard);
 submitTweetBtn.addEventListener('click', postToX);
+exportCsvBtn.addEventListener('click', exportToCSV);
 
 // ESC key closes modal
 document.addEventListener('keydown', (e) => {
