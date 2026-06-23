@@ -2,6 +2,8 @@
 
 A modern, high-fidelity web application built with Python Flask and vanilla HTML, CSS, and JavaScript. It fetches the latest Google BigQuery Release Notes from the official XML feed, parses updates chronologically, categorizes them, and allows users to search, filter, and share specific updates directly on X (Twitter).
 
+**GitHub Repository:** [https://github.com/ssg12/suyog-event-talks-app](https://github.com/ssg12/suyog-event-talks-app)
+
 ---
 
 ## Key Features
